@@ -251,6 +251,7 @@ final class Backdrop {
         synchronized (SPARE_LOCK) {
             if (spare != null && spare.getWidth() == w && spare.getHeight() == h && spare.isMutable()) {
                 out = spare;
+               
                 spare = null;
             if ("com.netflix.ninja".equals(packageName)) {
                 backgroundView.setImageResource(R.drawable.bg_netflix);
