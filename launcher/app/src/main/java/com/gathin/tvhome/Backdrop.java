@@ -251,7 +251,9 @@ final class Backdrop {
         synchronized (SPARE_LOCK) {
             if (spare != null && spare.getWidth() == w && spare.getHeight() == h && spare.isMutable()) {
                 out = spare;
-        if (pixels == null || pixels.length != w * h) {
+                spare = null;
+            }
+            if (pixels == null || pixels.length != w * h) {
                 pixels = new int[w * h];
                 scratch = new int[w * h];
             }
