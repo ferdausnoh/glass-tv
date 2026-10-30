@@ -581,11 +581,41 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
+    // Per-app wallpaper: appwall/<package>.jpg replaces the rotation
+    // while that app is focused.
+    private boolean appWallActive;
+    private String appWallPkg;
+
+    private void applyAppWallpaper(final String pkg) {
+        if (pkg == null || pkg.equals(appWallPkg)) return;
+        appWallPkg = pkg;
+        java.io.File dir = getExternalFilesDir("appwall");
+        final java.io.File file = dir == null ? null : new java.io.File(dir, pkg + ".jpg");
+        if (file == null || !file.isFile()) {
+            if (appWallActive) {
+                appWallActive = false;
+                if (!wallpapers.isEmpty()) showNextWallpaper(true);
+            }
+            return;
+        }
+        appWallActive = true;
+        wallDecoder.execute(() -> {
+            final android.graphics.Bitmap bmp = decodeWallpaper(file);
+            if (bmp == null) return;
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            final android.graphics.Bitmap blur = Backdrop.blur(bmp, dm.widthPixels, dm.heightPixels, placesMode ? 0xFF7A7A7A : 0);
+            handler.post(() -> {
+                if (isDestroyed() || !appWallActive || !pkg.equals(appWallPkg)) return;
+                setWallpaper(bmp, true, blur);
+            });
+        });
+    }
+
     /** Switches to the next picture every wallpaper interval while Home is in front. */
     private final Runnable wallTick = new Runnable() {
         @Override
         public void run() {
-            if (wallpapers.size() >= 2) showNextWallpaper(true);
+            if (!appWallActive && wallpapers.size() >= 2) showNextWallpaper(true);
             handler.postDelayed(this, wallpaperIntervalMs);
         }
     };
@@ -864,7 +894,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // Below the dock there is no shelf, but the glow still takes this app's colour, so every
             // tile lights the room the same way the dock does.
             hideShelf();
-            showAmbient(adapter.ambientColorAt(position));
+            showAmbient(adapter.ambientColorAt(position)); applyAppWallpaper(adapter.pkgAt(position));
             // Scroll just enough so the whole glass (not only the tile) is visible.
             showRect.set(0, -(int) pad * 2, item.getWidth(), item.getHeight() + (int) pad);
             grid.requestChildRectangleOnScreen(item, showRect, reducedMotion);
@@ -880,6 +910,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         final String desc = placeName != null ? placeText : "";
         final String where = placeName != null ? placeCountry : "";
         int color = adapter.ambientColorAt(position);
+        applyAppWallpaper(adapter.pkgAt(position));
         heroBottom = dockTopInRoot - HERO_GAP_DP * density;
         float y = heroBottom - heroShelf.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
